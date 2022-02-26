@@ -86,6 +86,7 @@ def process_hunchly(hunchly_export):
   filelist = zipf.namelist()
   filelist = [fname for fname in filelist if fname.endswith(".mhtml")]
 
+  # Use stqdm to show progress bar in Streamlit
   for fname in stqdm(filelist):
     process_mhtml(zipf, fname)
 
