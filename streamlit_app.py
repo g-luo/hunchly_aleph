@@ -49,13 +49,14 @@ def get_collections(query=""):
 #             Hunchly Processing
 # ===========================================
 
-def process_mhtml(zipf, fname):
+def process_pages(zipf, fname, upload_photo=False):
   file_contents = zipf.read(fname)
   sha256hash = hashlib.sha256(file_contents).hexdigest()
   message = email.message_from_bytes(file_contents)
   html_body = b""
   
   content_location = None
+  images = []
   for part in message.walk():
 
     if content_location == None:
@@ -68,27 +69,68 @@ def process_mhtml(zipf, fname):
 
     if content_type == "text/plain" or content_type == "text/html":
       html_body += part.get_payload(decode=True)
+
+    elif upload_photo and content_type.startswith("image/"):          
+      image_path = part['Content-Location']
+      # extract the image and then send it off for processing
+      base64_image = part.get_payload(decode=True)
+      image_file = image_path.split("/")[-1]
+      meta = {}
+      meta["file_name"] = image_file
+      meta['title'] = message['Subject']
+      meta['generator'] = "Hunchly"
+      meta['source_url']= image_path
+      images.append((base64_image, image_file, meta))
      
-  # build a metadata object for aleph
+  # Build a metadata object for aleph
   meta = {}
-  meta["file_name"] = "{}.html".format(fname)
+  meta["file_name"] = fname.split("?")[0]
   meta["title"] = message['Subject']
   meta["generator"] = "Hunchly"
   meta["source_url"] = content_location
   
+  # Upload html
   with open("page.html", "wb") as fd:
     fd.write(html_body)
   response = upload_files("page.html", meta)
   os.remove("page.html")
 
-def process_hunchly(hunchly_export):
+  if upload_photo and response.get("id") != None:
+    parent_id = response['id']
+    for image in images:
+      image[2]['parent_id'] = parent_id
+      with open(image[1],"wb") as fd:
+        fd.write(image[0])
+      upload_files(image[1], image[2])
+      os.remove(image[1])
+
+def process_photos(zipf, fname):
+  process_pages(zipf, fname, upload_photo=True)
+
+def process_attachments(zipf, fname):
+  case_data = json.loads(zipf.read("case_data/case_attachments.json"))
+  meta = {}
+  meta["file_name"] = fname
+  meta["generator"] = "Hunchly"       
+  file_path = os.path.split(fname)[1]
+  for i in case_data:
+    if file_path == i['Filename']:
+      meta['source_url'] = i['Source']
+  upload_files(zipf.read(fname), fname, meta)
+
+def process_hunchly(hunchly_export, file_types):
   zipf = zipfile.ZipFile(hunchly_export)
   filelist = zipf.namelist()
-  filelist = [fname for fname in filelist if fname.endswith(".mhtml")]
+  filelist = [fname for fname in filelist if fname.startswith(tuple(file_types))]
 
   # Use stqdm to show progress bar in Streamlit
   for fname in stqdm(filelist):
-    process_mhtml(zipf, fname)
+    if fname.startswith("pages/"):
+      process_pages(zipf, fname)
+    elif fname.startswith("photos/"):
+      process_photos(zipf, fname)
+    elif fname.startswith("attachments/"):
+      process_attachments(zipf, fname)
 
 # ===========================================
 #             Streamlit GUI
@@ -108,13 +150,18 @@ def show_streamlit():
     - To link a Aleph Investigation: Go to [Investigations](https://aleph.occrp.org/investigations), select one, and input the link that appears in the top bar. \
     To create a new investigation, input a new name instead of a link.
 
-    Made with ❤️ in Berkeley by the [Berkeley Investigative Reporting Program](https://journalism.berkeley.edu/programs/mj/investigative-reporting/) (with source code
+    Made with ❤️ in Berkeley by Grace Luo in collaboration with the [Berkeley Investigative Reporting Program](https://journalism.berkeley.edu/programs/mj/investigative-reporting/) (with source code
     from the Hunchly team).
   """
 
   st.set_page_config(page_title=title, page_icon=icon, layout="centered")
   st.title(icon + " " + title)
   st.markdown(body)
+
+  if "option" not in st.session_state:
+    st.session_state.investigation = ""
+    st.session_state.collection_id = 0
+    st.session_state.api_key = ""
 
   # Upload Hunchly Case
   st.session_state.hunchly_export = st.file_uploader(
@@ -123,14 +170,19 @@ def show_streamlit():
     accept_multiple_files=False,
   )
 
-  if "option" not in st.session_state:
-    st.session_state.investigation = ""
-    st.session_state.collection_id = 0
-    st.session_state.api_key = ""
+  # Select File Types
+  file_types = ["pages/", "photos/", "attachments/"]
+  if "file_types" not in st.session_state:
+    st.session_state.file_types = [False for f in file_types]
 
+  st.write("Select Folders to Upload")
+  for i, f in enumerate(file_types):
+    st.session_state.file_types[i] = st.checkbox(f, value=True)
+
+  # Input Aleph API Key
   st.session_state.api_key = st.text_input("Input Aleph API Key")
 
-  # Disable if not creating new investigation
+  # Input Aleph Investigation Link
   st.session_state.investigation = st.text_input(
     "Link Aleph Investigation",
     placeholder="https://aleph.occrp.org/investigations/0 OR New Investigation Name"
@@ -150,7 +202,8 @@ def show_streamlit():
       st.session_state.collection_id = response["collection_id"]
     else:
       st.session_state.collection_id = st.session_state.investigation.split("/")[-1]
-    process_hunchly(st.session_state.hunchly_export)
+    
+    process_hunchly(st.session_state.hunchly_export, [f for i, f in enumerate(file_types) if st.session_state.file_types[i]])
     st.success("Success! Uploaded all HTML files to Aleph.")
 
 if __name__ == "__main__":
