@@ -16,6 +16,6 @@ from the Hunchly team).
 
 
 
-TODO
+**Features still in progress**
 - [ ] Add attachments, notes support
 - [ ] Add nested folder support
