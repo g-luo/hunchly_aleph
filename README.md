@@ -13,3 +13,9 @@ Made with ❤️ in Berkeley by the [Berkeley Investigative Reporting Program](h
 from the Hunchly team).
 
 <img width="583" alt="screenshot" src="gui.png">
+
+
+
+TODO
+- [ ] Add attachments, notes support
+- [ ] Add nested folder support

@@ -1,6 +1,7 @@
 import zipfile
 from stqdm import stqdm
-from utils import process_pages, process_photos, process_attachments, create_collection
+from utils import process_pages, process_photos, process_attachments
+from utils import create_collection, upload_folders
 import streamlit as st
 
 # Disable support for attachments since upload does not work
@@ -10,23 +11,26 @@ SUPPORTED_FILE_TYPES = {
   # "attachments/": ((""), process_attachments)
 }
 
-def valid_fname(fname, file_types):
-  for start in file_types:
-    end, process_fn = SUPPORTED_FILE_TYPES[start]
-    if fname.startswith(start) and fname.endswith(end):
-      return fname, process_fn
-  return None
+def get_filelist(filelist, file_types):
+  """
+    Finds files with valid fname and groups by file_type.
+  """
+  filedict = {start: [] for start in file_types}
+  for fname in filelist:
+    for start in file_types:
+      end, process_fn = SUPPORTED_FILE_TYPES[start]
+      if fname.startswith(start) and fname.endswith(end):
+        filedict[start].append((start, process_fn, fname))
+  return sum(filedict.values(), [])
 
 def process_hunchly(hunchly_export, file_types):
   zipf = zipfile.ZipFile(hunchly_export)
   filelist = zipf.namelist()
-  filelist = [valid_fname(fname, file_types) for fname in filelist]
-  filelist = [f for f in filelist if f]
-
-  # st.session_state.parent_ids = upload_folders(file_types)
+  filelist = get_filelist(filelist, file_types)
   # Use stqdm to show progress bar in Streamlit
-  for fname, process_fn in stqdm(filelist):
-    process_fn(zipf, fname)
+  st.session_state.parent_ids = upload_folders(file_types)
+  for start, process_fn, fname in stqdm(filelist):
+    process_fn(zipf, fname, start)
 
 # ===========================================
 #             Streamlit GUI
@@ -59,7 +63,7 @@ def show_streamlit():
 
   # Upload Hunchly Case
   st.session_state.hunchly_export = st.file_uploader(
-    "Upload Hunchly Case", 
+    "Upload Hunchly Case",
     type=["zip"], 
     accept_multiple_files=False,
   )
@@ -96,7 +100,8 @@ def show_streamlit():
     else:
       st.session_state.collection_id = st.session_state.investigation.split("/")[-1]
     
-    process_hunchly(st.session_state.hunchly_export, [f for i, f in enumerate(SUPPORTED_FILE_TYPES.keys()) if st.session_state.file_types[i]])
+    file_types = [f for i, f in enumerate(SUPPORTED_FILE_TYPES.keys()) if st.session_state.file_types[i]]
+    process_hunchly(st.session_state.hunchly_export, file_types)
     st.success("Success! Uploaded all HTML files to Aleph.")
 
 if __name__ == "__main__":

@@ -14,21 +14,35 @@ ALEPH_HOST = "https://aleph.occrp.org/"
 def get_aleph():
   return api.AlephAPI(host=ALEPH_HOST, api_key=st.session_state.api_key)
 
-# def upload_folders(file_types):
-#   aleph = get_aleph()
-#   parent_ids = {}
-#   for file_type in file_types:
-#     meta = {"title": file_type}
-#     response = aleph.ingest_upload(st.session_state.collection_id, metadata=meta)
-#     parent_ids[file_type] = response.get("id", None)
-#   return parent_ids
+def upload_folders(file_types):
+  aleph = get_aleph()
+  parent_ids = {}
 
-def upload_files(file=None, meta=None):
+  # Get folders that exist
+  stream = aleph.stream_entities({"id": st.session_state.collection_id})
+  folders = [f for f in stream]
+  for f in folders:
+    if not f.get("properties", {}).get("title", None):
+      continue
+    title = f["properties"]["title"][0]
+    if "id" in f and title in set(file_types):
+      parent_ids[title] = f["id"]
+
+  # Upload new folders
+  for f in file_types:
+    if f not in parent_ids:
+      meta = {"title": f, "foreign_id": f}
+      response = aleph.ingest_upload(st.session_state.collection_id, metadata=meta)
+      parent_ids[f] = response.get("id", None)
+  return parent_ids
+
+def upload_files(file, meta, file_type):
   aleph = get_aleph()
   # Create file
   if file is not None:
     with open("file", "wb") as fd:
       fd.write(file)
+    meta["parent_id"] = st.session_state.parent_ids[file_type]
     response = aleph.ingest_upload(st.session_state.collection_id, pathlib.Path("file"), metadata=meta)
     os.remove("file")
   return response
@@ -65,10 +79,11 @@ def get_meta(file_name, title, source_url):
   meta["source_url"]= source_url
   return meta
 
-def process_pages(zipf, fname, upload_photo=False):
-  message = get_message(zipf, fname)
+def get_fname(fname):
+  return fname.split("?")[0]
+
+def walk(message, fname, file_type, upload_photo):
   html_body = b""
-  
   content_location = None
   images = []
   for part in message.walk():
@@ -85,20 +100,20 @@ def process_pages(zipf, fname, upload_photo=False):
       image_path = part['Content-Location']
       base64_image = part.get_payload(decode=True)
       meta = get_meta(image_file, message['Subject'], image_path)
-      images.append((base64_image, meta))
+      upload_files(base64_image, meta, file_type)
 
-  meta = get_meta(fname.split("?")[0], message['Subject'], content_location)
-  response = upload_files(html_body, meta)
-  if upload_photo and response.get("id"):
-    parent_id = response['id']
-    for base64_image, meta in images:
-      meta['parent_id'] = parent_id
-      upload_files(base64_image, meta)
+  meta = get_meta(get_fname(fname), message['Subject'], content_location)
+  upload_files(html_body, meta, file_type)
 
-def process_photos(zipf, fname):
-  process_pages(zipf, fname, upload_photo=True)
+def process_pages(zipf, fname, file_type):
+  message = get_message(zipf, fname)
+  walk(message, fname, file_type, upload_photo=False)
 
-def process_attachments(zipf, fname):
+def process_photos(zipf, fname, file_type):
+  message = get_message(zipf, fname)
+  walk(message, fname, file_type, upload_photo=True)
+
+def process_attachments(zipf, fname, file_type):
   if fname.endswith("/"):
     return
   
@@ -108,4 +123,4 @@ def process_attachments(zipf, fname):
     if os.path.split(fname)[1] == i['Filename']:
       meta['source_url'] = i['Source']
 
-  upload_files(zipf.read(fname), meta)
+  upload_files(zipf.read(fname), meta, file_type)
