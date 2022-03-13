@@ -4,6 +4,7 @@ import email
 import os
 import json
 import streamlit as st
+import random
 
 ALEPH_HOST = "https://aleph.occrp.org/"
 
@@ -40,11 +41,12 @@ def upload_files(file, meta, file_type):
   aleph = get_aleph()
   # Create file
   if file is not None:
-    with open("file", "wb") as fd:
+    h = str(random.getrandbits(32))
+    with open(h, "wb") as fd:
       fd.write(file)
     meta["parent_id"] = st.session_state.parent_ids[file_type]
-    response = aleph.ingest_upload(st.session_state.collection_id, pathlib.Path("file"), metadata=meta)
-    os.remove("file")
+    response = aleph.ingest_upload(st.session_state.collection_id, pathlib.Path(h), metadata=meta)
+    os.remove(h)
   return response
 
 def create_collection(label, casefile=False, category="other", languages=[], summary=""):
