@@ -14,8 +14,15 @@ from the Hunchly team).
 
 <img width="583" alt="screenshot" src="gui.png">
 
+**Packaging as a Mac App**
+To package this library as a Mac App, do the following:
+```
+cd app
+python3 -m venv env
+source env/bin/activate
+pip install -r ../requirements.txt
+pip install py2app
+python3 setup.py py2app
+```
 
-
-**Features still in progress**
-- [ ] Add attachments, notes support
-- [ ] Add nested folder support
+Note that the files `setup.py` and `HunchlyAleph.py` were specifically created for this packaging process. Some fixes include increasing the max recursion depth as a workaround for a bug in modulegraph / ast, and using webbrowser to ensure a window pops up after the shell script is run. You may also need to link .dylib files that have different names or change your active python version to python3.
