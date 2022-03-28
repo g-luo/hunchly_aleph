@@ -56,6 +56,16 @@ def show_streamlit():
   st.title(icon + " " + title)
   st.markdown(body)
 
+  with st.sidebar:
+    st.write("**File too big? Run this app locally.**")
+    platforms = {"Mac": "HunchlyAleph-darwin-x64", "Windows": "HunchlyAleph-win32-x64", "Linux": "HunchlyAleph-linux-x64"}
+    for platform, file in platforms.items():
+      st.download_button(
+          f"Download for {platform}", 
+          data=open(f"app/{file}/HunchlyAleph.zip", "rb"),
+          file_name=f"HunchlyAleph_{platform}.zip",
+      )
+
   if "option" not in st.session_state:
     st.session_state.investigation = ""
     st.session_state.collection_id = 0
