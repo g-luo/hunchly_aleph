@@ -26,6 +26,7 @@ def get_filelist(filelist, file_types):
 def process_hunchly(hunchly_export, file_types):
   zipf = zipfile.ZipFile(hunchly_export)
   filelist = zipf.namelist()
+  print(filelist)
   filelist = get_filelist(filelist, file_types)
   # Use stqdm to show progress bar in Streamlit
   st.session_state.parent_ids = upload_folders(file_types)
@@ -56,15 +57,15 @@ def show_streamlit():
   st.title(icon + " " + title)
   st.markdown(body)
 
-  # with st.sidebar:
-  #   st.write("**File too big? Run this app locally.**")
-  #   platforms = {"Mac": "HunchlyAleph-darwin-x64", "Windows": "HunchlyAleph-win32-x64", "Linux": "HunchlyAleph-linux-x64"}
-  #   for platform, file in platforms.items():
-  #     st.download_button(
-  #         f"Download for {platform}", 
-  #         data=open(f"app/{file}/HunchlyAleph.zip", "rb"),
-  #         file_name=f"HunchlyAleph_{platform}.zip",
-  #     )
+  with st.sidebar:
+    st.write("**File too big? Download this app.**")
+    
+    st.write("Save your file as ~/Desktop/Hunchly.zip on your Desktop and click on the app. It will break your zipfile into 500MB pieces.")
+    st.download_button(
+        f"ZipSplit", 
+        data=open(f"app/ZipSplit.zip", "rb"),
+        file_name=f"ZipSplit.zip",
+    )
 
   if "option" not in st.session_state:
     st.session_state.investigation = ""
