@@ -59,13 +59,14 @@ def show_streamlit():
 
   with st.sidebar:
     st.write("**File too big? Download this app.**")
-    
     st.write("Save your file as ~/Desktop/Hunchly.zip on your Desktop and click on the app. It will break your zipfile into 500MB pieces.")
-    st.download_button(
-        f"ZipSplit", 
-        data=open(f"app/ZipSplit.zip", "rb"),
-        file_name=f"ZipSplit.zip",
-    )
+    platforms = ["Mac"]
+    for platform in platforms:
+      st.download_button(
+          f"ZipSplit for {platform}", 
+          data=open(f"app/ZipSplit_{platform}.zip", "rb"),
+          file_name=f"ZipSplit_{platform}.zip",
+      )
 
   if "option" not in st.session_state:
     st.session_state.investigation = ""
