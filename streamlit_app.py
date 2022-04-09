@@ -26,7 +26,6 @@ def get_filelist(filelist, file_types):
 def process_hunchly(hunchly_export, file_types):
   zipf = zipfile.ZipFile(hunchly_export)
   filelist = zipf.namelist()
-  print(filelist)
   filelist = get_filelist(filelist, file_types)
   # Use stqdm to show progress bar in Streamlit
   st.session_state.parent_ids = upload_folders(file_types)

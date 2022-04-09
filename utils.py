@@ -5,8 +5,13 @@ import os
 import json
 import streamlit as st
 import random
+import os
 
 ALEPH_HOST = "https://aleph.occrp.org/"
+FOLDERS_CACHE = {
+  os.environ['HAITI_TEAM']: {"pages": os.environ['HAITI_TEAM_PAGES'], "photos": os.environ['HAITI_TEAM_PHOTOS']},
+  os.environ['REPRO_RIGHTS'] : {"pages": os.environ['REPRO_RIGHTS_PAGES'], "photos": os.environ['REPRO_RIGHTS_PHOTOS']}
+}
 
 # ===========================================
 #                 Aleph Utils
@@ -19,15 +24,18 @@ def upload_folders(file_types):
   aleph = get_aleph()
   parent_ids = {}
 
-  # Get folders that exist
-  stream = aleph.stream_entities({"id": st.session_state.collection_id})
-  folders = [f for f in stream]
-  for f in folders:
-    if not f.get("properties", {}).get("title", None):
-      continue
-    title = f["properties"]["title"][0]
-    if "id" in f and title in set(file_types):
-      parent_ids[title] = f["id"]
+  if st.session_state.collection_id in FOLDERS_CACHE:
+    parent_ids = FOLDERS_CACHE[st.session_state.collection_id]
+  else:
+    # Get folders that exist
+    stream = aleph.stream_entities({"id": st.session_state.collection_id})
+    folders = [f for f in stream]
+    for f in folders:
+      if not f.get("properties", {}).get("title", None):
+        continue
+      title = f["properties"]["title"][0]
+      if "id" in f and title in set(file_types):
+        parent_ids[title] = f["id"]
 
   # Upload new folders
   for f in file_types:
