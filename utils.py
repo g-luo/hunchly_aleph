@@ -5,12 +5,11 @@ import os
 import json
 import streamlit as st
 import random
-import os
 
 ALEPH_HOST = "https://aleph.occrp.org/"
 FOLDERS_CACHE = {
-  os.environ['HAITI_TEAM']: {"pages": os.environ['HAITI_TEAM_PAGES'], "photos": os.environ['HAITI_TEAM_PHOTOS']},
-  os.environ['REPRO_RIGHTS'] : {"pages": os.environ['REPRO_RIGHTS_PAGES'], "photos": os.environ['REPRO_RIGHTS_PHOTOS']}
+  st.secrets['HAITI_TEAM']: {"pages": st.secrets['HAITI_TEAM_PAGES'], "photos": st.secrets['HAITI_TEAM_PHOTOS']},
+  st.secrets['REPRO_RIGHTS'] : {"pages": st.secrets['REPRO_RIGHTS_PAGES'], "photos": st.secrets['REPRO_RIGHTS_PHOTOS']}
 }
 
 # ===========================================
